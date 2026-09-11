@@ -81,6 +81,7 @@ describe('Neon migration tools', () => {
     const fetchMock = vi.fn().mockResolvedValue(
       Response.json({
         applied: true,
+        already_applied: false,
         temporary_branch_deleted: true,
         results: [statementResult],
       }),
@@ -98,6 +99,7 @@ describe('Neon migration tools', () => {
       ),
     ).resolves.toEqual({
       applied: true,
+      already_applied: false,
       temporary_branch_deleted: true,
       results: [statementResult],
     });

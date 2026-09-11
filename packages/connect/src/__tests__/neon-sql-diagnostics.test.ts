@@ -92,6 +92,7 @@ describe('Neon SQL diagnostic tools', () => {
     expect(body.mode).toBe('read');
     expect(body.max_rows).toBe(10);
     expect(body.statements[0].sql).toContain('FROM pg_stat_statements');
+    expect(body.statements[0].sql).toContain('dbid = (SELECT oid FROM pg_database WHERE datname = current_database())');
     expect(body.statements[0].parameters).toEqual([5, 10]);
   });
 });

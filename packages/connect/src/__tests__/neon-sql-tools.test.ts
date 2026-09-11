@@ -136,6 +136,9 @@ describe('Neon SQL and schema tools', () => {
     expect(listBody.statements[0].parameters).toEqual(['public']);
     const describeBody = JSON.parse(String(fetchMock.mock.calls[1]![1].body));
     expect(describeBody.statements).toHaveLength(3);
+    expect(describeBody.statements[1].sql).toContain('tc.table_catalog = kcu.table_catalog');
+    expect(describeBody.statements[1].sql).toContain('tc.table_schema = kcu.table_schema');
+    expect(describeBody.statements[1].sql).toContain('tc.table_name = kcu.table_name');
     expect(
       describeBody.statements.every(
         (statement: { parameters: unknown[] }) => statement.parameters.join(',') === 'public,widgets',

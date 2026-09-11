@@ -77,7 +77,8 @@ export function createNeonDiagnosticTools(options?: ProviderToolsOptions): Tools
               sql: `SELECT queryid::text AS query_id, calls, rows,
        total_exec_time, mean_exec_time, min_exec_time, max_exec_time, query
 FROM pg_stat_statements
-WHERE calls >= $1
+WHERE dbid = (SELECT oid FROM pg_database WHERE datname = current_database())
+  AND calls >= $1
 ORDER BY total_exec_time DESC
 LIMIT $2`,
               parameters: [input.min_calls, input.limit],

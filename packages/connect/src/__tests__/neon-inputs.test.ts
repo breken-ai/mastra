@@ -49,6 +49,7 @@ it('preserves recovery preconditions through generation', () => {
 
 it('preserves the PostgreSQL role name byte limit through generation', () => {
   const base = { project_id: 'project', branch_id: 'branch' };
+  expect(createRoleInputSchema.safeParse({ ...base, body: { role: { name: '' } } }).success).toBe(false);
   expect(createRoleInputSchema.safeParse({ ...base, body: { role: { name: 'é'.repeat(32) } } }).success).toBe(false);
   expect(createRoleInputSchema.safeParse({ ...base, body: { role: { name: 'reader', no_login: true } } }).success).toBe(
     true,

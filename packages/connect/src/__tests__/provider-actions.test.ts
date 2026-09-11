@@ -3,6 +3,7 @@ import { RequestContext } from '@mastra/core/request-context';
 import { describe, expect, it, vi } from 'vitest';
 
 import { PROVIDERS } from '../index.js';
+import { listIncidentsInputSchema } from '../providers/incident-io/tools/list-incidents.js';
 import { listEmailsInputSchema } from '../providers/resend/tools/list-emails.js';
 import { sendEmailInputSchema } from '../providers/resend/tools/send-email.js';
 
@@ -67,5 +68,12 @@ describe('generated Resend schema constraints', () => {
         body: { from: 'sender@example.com', to: 'recipient@example.com', subject: 'Hello' },
       }).success,
     ).toBe(false);
+  });
+});
+
+describe('generated incident.io schema constraints', () => {
+  it('uses the documented incident page-size limit', () => {
+    expect(listIncidentsInputSchema.safeParse({ page_size: 250 }).success).toBe(true);
+    expect(listIncidentsInputSchema.safeParse({ page_size: 251 }).success).toBe(false);
   });
 });

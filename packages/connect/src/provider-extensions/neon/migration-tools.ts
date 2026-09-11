@@ -69,7 +69,7 @@ export function createNeonMigrationTools(options?: ProviderToolsOptions): ToolsI
     neon_complete_migration: createTool({
       id: 'neon_complete_migration',
       description:
-        'Apply a prepared Neon migration to its verified parent branch, or discard it, then clean up the temporary branch.',
+        'Apply a prepared Neon migration once to its verified parent branch, or discard it, then clean up the temporary branch.',
       inputSchema: completeMigrationInputSchema,
       outputSchema: neonCompleteMigrationResponseSchema,
       requireApproval: true,

@@ -28,7 +28,9 @@ describe('generated Neon diagnostics', () => {
     ).resolves.toMatchObject({ next_cursor: 'next' });
     expect(getBranchConsumptionInputSchema.safeParse({ ...input, project_ids: [''] }).success).toBe(false);
     expect(getBranchConsumptionInputSchema.safeParse({ ...input, project_ids: ['a,b'] }).success).toBe(false);
-    const query = new URL(String(fetchMock.mock.calls[0]![0])).searchParams;
+    const url = new URL(String(fetchMock.mock.calls[0]![0]));
+    expect(url.pathname).toBe('/v2/connections/connection/proxy/v2/consumption_history/v2/branches');
+    const query = url.searchParams;
     expect(query.get('project_ids')).toBe('project-a,project-b');
     expect(query.get('metrics')).toBe('compute_unit_seconds,public_network_transfer_bytes');
     expect(query.get('cursor')).toBe('previous');

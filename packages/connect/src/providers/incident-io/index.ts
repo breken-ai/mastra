@@ -1,4 +1,4 @@
-// AUTO-GENERATED from rhysbalevicius/integration-templates @ cfb727cbc131 — do not edit by hand.
+// AUTO-GENERATED from rhysbalevicius/integration-templates @ e15a84f3714d — do not edit by hand.
 import type { ProviderRegistration } from '../../registry.js';
 import { createIncidentIoTools } from './tools.js';
 

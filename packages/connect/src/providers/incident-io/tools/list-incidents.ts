@@ -1,11 +1,11 @@
-// AUTO-GENERATED from rhysbalevicius/integration-templates @ cfb727cbc131 — do not edit by hand.
+// AUTO-GENERATED from rhysbalevicius/integration-templates @ e15a84f3714d — do not edit by hand.
 import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
 
 import type { PlatformProxy, PlatformProxyRequest } from '../../../runtime/platform-proxy.js';
 
 export const listIncidentsInputSchema = z.object({
-  page_size: z.number().int().min(1).max(500).optional(),
+  page_size: z.number().int().min(1).max(250).optional(),
   after: z.string().optional(),
   sort_by: z.enum(['created_at_newest_first', 'created_at_oldest_first']).optional(),
   filter_mode: z.enum(['all', 'any']).optional(),

@@ -236,6 +236,7 @@ export type NeonPrepareMigrationResponse = z.infer<typeof neonPrepareMigrationRe
 
 export const neonCompleteMigrationResponseSchema = z.object({
   applied: z.boolean(),
+  already_applied: z.boolean(),
   temporary_branch_deleted: z.boolean(),
   results: z.array(neonSqlStatementResultSchema),
 });

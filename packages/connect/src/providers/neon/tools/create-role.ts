@@ -1,4 +1,4 @@
-// AUTO-GENERATED from rhysbalevicius/integration-templates @ 4cdd3a76deb0 — do not edit by hand.
+// AUTO-GENERATED from rhysbalevicius/integration-templates @ e15a84f3714d — do not edit by hand.
 import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
 
@@ -11,7 +11,7 @@ export const createRoleInputSchema = z
     body: z.object({
       role: z
         .object({
-          name: z.string().describe('The role name. Cannot exceed 63 bytes in length.\n'),
+          name: z.string().min(1).describe('The role name. Cannot exceed 63 bytes in length.\n'),
           no_login: z.boolean().describe('Whether to create a role that cannot login.\n').optional(),
         })
         .describe('Properties of the role to create.'),
