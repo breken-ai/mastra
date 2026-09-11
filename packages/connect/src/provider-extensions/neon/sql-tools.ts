@@ -2,9 +2,16 @@ import type { ToolsInput } from '@mastra/core/agent';
 import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
 
-import { neonSqlStatementResultSchema, type NeonSqlRequest } from '../../client.js';
+import { neonSqlStatementResultSchema } from '../../client.js';
 import type { ProviderToolsOptions } from '../../toolset.js';
-import { neonSqlLimitsShape, neonSqlStatementSchema, neonTargetShape, rowSchema, runNeonSql } from './shared.js';
+import {
+  neonSqlLimitsShape,
+  neonSqlStatementSchema,
+  neonTarget,
+  neonTargetShape,
+  rowSchema,
+  runNeonSql,
+} from './shared.js';
 
 const queryInputSchema = z.object({
   ...neonTargetShape,
@@ -47,18 +54,6 @@ const describeTableOutputSchema = z.object({
   truncated: z.boolean(),
 });
 
-function target(
-  input: Pick<NeonSqlRequest, 'project_id' | 'branch_id' | 'endpoint_id' | 'database_name' | 'role_name'>,
-) {
-  return {
-    project_id: input.project_id,
-    branch_id: input.branch_id,
-    endpoint_id: input.endpoint_id,
-    database_name: input.database_name,
-    role_name: input.role_name,
-  };
-}
-
 export function createNeonSqlTools(options?: ProviderToolsOptions): ToolsInput {
   return {
     neon_query: createTool({
@@ -68,7 +63,7 @@ export function createNeonSqlTools(options?: ProviderToolsOptions): ToolsInput {
       inputSchema: queryInputSchema,
       outputSchema: neonSqlStatementResultSchema,
       execute: async input => {
-        const response = await runNeonSql(options, target(input), {
+        const response = await runNeonSql(options, neonTarget(input), {
           mode: 'read',
           statements: [{ sql: input.sql, parameters: input.parameters }],
           timeout_ms: input.timeout_ms,
@@ -85,7 +80,7 @@ export function createNeonSqlTools(options?: ProviderToolsOptions): ToolsInput {
       outputSchema: neonSqlStatementResultSchema,
       requireApproval: true,
       execute: async input => {
-        const response = await runNeonSql(options, target(input), {
+        const response = await runNeonSql(options, neonTarget(input), {
           mode: 'write',
           statements: [{ sql: input.sql, parameters: input.parameters }],
           timeout_ms: input.timeout_ms,
@@ -102,7 +97,7 @@ export function createNeonSqlTools(options?: ProviderToolsOptions): ToolsInput {
       outputSchema: transactionOutputSchema,
       requireApproval: true,
       execute: async input =>
-        runNeonSql(options, target(input), {
+        runNeonSql(options, neonTarget(input), {
           mode: 'write',
           statements: input.statements,
           timeout_ms: input.timeout_ms,
@@ -115,7 +110,7 @@ export function createNeonSqlTools(options?: ProviderToolsOptions): ToolsInput {
       inputSchema: listTablesInputSchema,
       outputSchema: listTablesOutputSchema,
       execute: async input => {
-        const response = await runNeonSql(options, target(input), {
+        const response = await runNeonSql(options, neonTarget(input), {
           mode: 'read',
           statements: [
             {
@@ -140,7 +135,7 @@ ORDER BY table_schema, table_name`,
       inputSchema: describeTableInputSchema,
       outputSchema: describeTableOutputSchema,
       execute: async input => {
-        const response = await runNeonSql(options, target(input), {
+        const response = await runNeonSql(options, neonTarget(input), {
           mode: 'read',
           statements: [
             {

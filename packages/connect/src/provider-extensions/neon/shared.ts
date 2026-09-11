@@ -39,6 +39,18 @@ export const neonSqlLimitsShape = {
 
 export const rowSchema = z.record(z.string(), z.unknown());
 
+type NeonTarget = Pick<NeonSqlRequest, 'project_id' | 'branch_id' | 'endpoint_id' | 'database_name' | 'role_name'>;
+
+export function neonTarget(input: NeonTarget): NeonTarget {
+  return {
+    project_id: input.project_id,
+    branch_id: input.branch_id,
+    endpoint_id: input.endpoint_id,
+    database_name: input.database_name,
+    role_name: input.role_name,
+  };
+}
+
 export async function runNeonSql(
   options: ProviderToolsOptions | undefined,
   input: Omit<NeonSqlRequest, 'mode' | 'statements' | 'timeout_ms' | 'max_rows'>,
