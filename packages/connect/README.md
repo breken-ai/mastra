@@ -22,11 +22,11 @@ const tools = connect({
 
 The resolver discovers active project connections. Where multiple connections match, select one with `MASTRA_NEON_CONNECTION_ID`, `MASTRA_RESEND_CONNECTION_ID`, or `MASTRA_INCIDENT_IO_CONNECTION_ID`, or the integration's `connectionId` option. The `integrations` entries configure individual providers; they do not disable other attached providers. Set `disabled: true` on providers you want to exclude.
 
-| Provider    | Tools | Scope                                                                                                                 |
-| ----------- | ----- | --------------------------------------------------------------------------------------------------------------------- |
-| Neon        | 50    | Projects, branches, operations, schemas, compute, databases, discovery, recovery, diagnostics, PostgreSQL roles       |
-| Resend      | 8     | Send/get/list/cancel emails; create/get/list/verify domains                                                           |
-| incident.io | 11    | List/get/create incidents; list/get/create/update follow-ups; list/get actions; list severities and incident statuses |
+| Provider    | Tools | Scope                                                                                                                  |
+| ----------- | ----- | ---------------------------------------------------------------------------------------------------------------------- |
+| Neon        | 59    | Management, recovery, diagnostics, PostgreSQL roles, SQL reads and writes, schema inspection, and migration validation |
+| Resend      | 8     | Send/get/list/cancel emails; create/get/list/verify domains                                                            |
+| incident.io | 11    | List/get/create incidents; list/get/create/update follow-ups; list/get actions; list severities and incident statuses  |
 
 Tool inputs use provider field names. Mutations place their JSON request payload under `body`. For example, `resend_send_email` accepts:
 
@@ -46,11 +46,11 @@ Resend requires a verified sending domain and a key authorized for the operation
 
 List tools return one provider page and preserve its response envelope. When `next_cursor` is present, pass it as `cursor` for Neon or `after` for Resend and incident.io. Preserve filters and sort options between pages. Neon branch listing uses a different underlying cursor field from project listing; the tools expose both as `next_cursor`.
 
-Neon SQL execution, password reveal/reset, connection-URI retrieval, and composed create-and-connect workflows are outside this catalog. incident.io uses v2 incidents, v3 follow-ups/actions, and v1 status/severity lookups; advanced object-valued incident filters are outside the initial tool inputs.
+Dedicated password reveal/reset, connection-URI retrieval, and composed create-and-connect workflows are outside this catalog. incident.io uses v2 incidents, v3 follow-ups/actions, and v1 status/severity lookups; advanced object-valued incident filters are outside the initial tool inputs.
 
 ## Neon workflows
 
-The 50 Neon tools cover 50 operations from the pinned Management API specification. Use `allowTools` to select the actions an agent needs.
+Fifty generated Neon tools cover 50 operations from the pinned Management API specification. Nine curated database tools add SQL, PostgreSQL catalog inspection, query diagnostics, and migration validation. Use `allowTools` to select the actions an agent needs.
 
 | Group                            | Tools added                                                                                                                                                                                                                               |
 | -------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -63,6 +63,15 @@ The 50 Neon tools cover 50 operations from the pinned Management API specificati
 | Recovery                         | `neon_create_snapshot`, `neon_list_snapshots`, `neon_update_snapshot`, `neon_delete_snapshot`, `neon_restore_snapshot`, `neon_get_snapshot_schedule`, `neon_set_snapshot_schedule`, `neon_restore_branch`, `neon_finalize_restore_branch` |
 | Diagnostics                      | `neon_query_branch_logs`, `neon_list_branch_log_fields`, `neon_list_branch_log_field_values`, `neon_get_project_consumption`, `neon_get_branch_consumption`                                                                               |
 | PostgreSQL roles                 | `neon_list_roles`, `neon_get_role`, `neon_create_role`, `neon_delete_role`                                                                                                                                                                |
+| SQL and catalog                  | `neon_query`, `neon_execute`, `neon_transaction`, `neon_list_tables`, `neon_describe_table`                                                                                                                                               |
+| SQL diagnostics                  | `neon_explain_query`, `neon_list_slow_queries`                                                                                                                                                                                            |
+| Migration validation             | `neon_prepare_migration`, `neon_complete_migration`                                                                                                                                                                                       |
+
+SQL values are passed separately from statements and bound to PostgreSQL placeholders such as `$1`. `neon_query`, catalog inspection, and diagnostics run in read-only transactions. `neon_execute` and `neon_transaction` require tool approval and run atomically with a bounded timeout and row count. Mastra Platform resolves the database URI and runs these statements; neither the Neon API key nor database URI enters the application process.
+
+`neon_explain_query` defaults to planner estimates. Setting `analyze: true` executes the query in the read-only transaction and requires approval. `neon_list_slow_queries` requires the `pg_stat_statements` extension in the target database.
+
+`neon_prepare_migration` creates an expiring child branch with a compute endpoint and applies the supplied statements there atomically. It returns a credential-free migration object with the validation results. Pass that exact object to `neon_complete_migration` and explicitly choose `apply_changes: true` to apply the statements to the verified parent branch, or `false` to discard the temporary branch. Both migration tools require approval. Platform performs branch creation, SQL execution, verification, and cleanup so branch-creation responses containing credentials are not sent to the application process.
 
 Mutations return operation IDs without waiting for completion. Query operation status before depending on the resulting resource. Schema inspection requires `db_name`; LSN and timestamp selectors are mutually exclusive on each side of a comparison.
 

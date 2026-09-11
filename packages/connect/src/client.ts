@@ -210,6 +210,38 @@ const neonSqlResponseSchema = z.object({
 
 export type NeonSqlResponse = z.infer<typeof neonSqlResponseSchema>;
 
+export const neonMigrationSchema = z.object({
+  migration_id: z.string().uuid(),
+  project_id: z.string(),
+  parent_branch_id: z.string(),
+  temporary_branch_id: z.string(),
+  temporary_branch_name: z.string(),
+  database_name: z.string().optional(),
+  role_name: z.string().optional(),
+  statements: neonSqlRequestSchema.shape.statements,
+  timeout_ms: z.number().int(),
+  max_rows: z.number().int(),
+  prepared_at: z.string().datetime(),
+  expires_at: z.string().datetime(),
+});
+
+export type NeonMigration = z.infer<typeof neonMigrationSchema>;
+
+export const neonPrepareMigrationResponseSchema = z.object({
+  migration: neonMigrationSchema,
+  validation_results: z.array(neonSqlStatementResultSchema),
+});
+
+export type NeonPrepareMigrationResponse = z.infer<typeof neonPrepareMigrationResponseSchema>;
+
+export const neonCompleteMigrationResponseSchema = z.object({
+  applied: z.boolean(),
+  temporary_branch_deleted: z.boolean(),
+  results: z.array(neonSqlStatementResultSchema),
+});
+
+export type NeonCompleteMigrationResponse = z.infer<typeof neonCompleteMigrationResponseSchema>;
+
 // —— endpoint functions ——
 
 export async function listProjectConnections(client: ResolvedClient, projectId: string): Promise<ProjectConnection[]> {
@@ -282,6 +314,73 @@ export async function executeNeonSql(
     throw new MastraConnectError(
       'platform_error',
       `Platform returned an unexpected Neon SQL response for connection ${connectionId}.`,
+    );
+  }
+  return parsed.data;
+}
+
+export async function prepareNeonMigration(
+  client: ResolvedClient,
+  connectionId: string,
+  request: {
+    project_id: string;
+    parent_branch_id: string;
+    database_name?: string;
+    role_name?: string;
+    statements: NeonSqlRequest['statements'];
+    timeout_ms: number;
+    max_rows: number;
+    ttl_seconds: number;
+  },
+): Promise<NeonPrepareMigrationResponse> {
+  const response = await platformFetch(
+    client,
+    `/v2/connections/${encodeURIComponent(connectionId)}/neon/migrations/prepare`,
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(request),
+    },
+  );
+  if (!response.ok) {
+    await throwPlatformError(response, `preparing a Neon migration for connection ${connectionId}`);
+  }
+  const parsed = neonPrepareMigrationResponseSchema.safeParse(
+    await parsePlatformJson(response, `preparing a Neon migration for connection ${connectionId}`),
+  );
+  if (!parsed.success) {
+    throw new MastraConnectError(
+      'platform_error',
+      `Platform returned an unexpected Neon migration response for connection ${connectionId}.`,
+    );
+  }
+  return parsed.data;
+}
+
+export async function completeNeonMigration(
+  client: ResolvedClient,
+  connectionId: string,
+  request: { migration: NeonMigration; apply_changes: boolean },
+): Promise<NeonCompleteMigrationResponse> {
+  const response = await platformFetch(
+    client,
+    `/v2/connections/${encodeURIComponent(connectionId)}/neon/migrations/complete`,
+    {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify(request),
+    },
+  );
+  if (!response.ok) {
+    await throwPlatformError(response, `completing a Neon migration for connection ${connectionId}`);
+  }
+  const parsed = neonCompleteMigrationResponseSchema.safeParse(
+    await parsePlatformJson(response, `completing a Neon migration for connection ${connectionId}`),
+  );
+  if (!parsed.success) {
+    throw new MastraConnectError(
+      'platform_error',
+      `Platform returned an unexpected Neon migration completion for connection ${connectionId}.`,
     );
   }
   return parsed.data;
