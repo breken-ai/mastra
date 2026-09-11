@@ -175,6 +175,41 @@ export const connectionContextSchema = z.object({
 
 export type ConnectionContext = z.infer<typeof connectionContextSchema>;
 
+const neonSqlParameterSchema = z.union([z.string(), z.number().finite(), z.boolean(), z.null()]);
+
+export const neonSqlRequestSchema = z.object({
+  project_id: z.string(),
+  branch_id: z.string().optional(),
+  endpoint_id: z.string().optional(),
+  database_name: z.string().optional(),
+  role_name: z.string().optional(),
+  mode: z.enum(['read', 'write']),
+  statements: z.array(
+    z.object({
+      sql: z.string(),
+      parameters: z.array(neonSqlParameterSchema).optional(),
+    }),
+  ),
+  timeout_ms: z.number().int(),
+  max_rows: z.number().int(),
+});
+
+export type NeonSqlRequest = z.infer<typeof neonSqlRequestSchema>;
+
+export const neonSqlStatementResultSchema = z.object({
+  rows: z.array(z.record(z.string(), z.unknown())),
+  row_count: z.number().int().nonnegative(),
+  affected_rows: z.number().int().nonnegative(),
+  command: z.string(),
+  truncated: z.boolean(),
+});
+
+const neonSqlResponseSchema = z.object({
+  results: z.array(neonSqlStatementResultSchema),
+});
+
+export type NeonSqlResponse = z.infer<typeof neonSqlResponseSchema>;
+
 // —— endpoint functions ——
 
 export async function listProjectConnections(client: ResolvedClient, projectId: string): Promise<ProjectConnection[]> {
@@ -221,6 +256,32 @@ export async function getCredential(client: ResolvedClient, connectionId: string
     throw new MastraConnectError(
       'unsupported_credential_type',
       `Platform returned an unsupported credential type for connection ${connectionId}.`,
+    );
+  }
+  return parsed.data;
+}
+
+/** Executes SQL in Platform so the Neon credential and connection URI never enter the caller's process. */
+export async function executeNeonSql(
+  client: ResolvedClient,
+  connectionId: string,
+  request: NeonSqlRequest,
+): Promise<NeonSqlResponse> {
+  const response = await platformFetch(client, `/v2/connections/${encodeURIComponent(connectionId)}/neon/sql`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify(request),
+  });
+  if (!response.ok) {
+    await throwPlatformError(response, `executing Neon SQL for connection ${connectionId}`);
+  }
+  const parsed = neonSqlResponseSchema.safeParse(
+    await parsePlatformJson(response, `executing Neon SQL for connection ${connectionId}`),
+  );
+  if (!parsed.success) {
+    throw new MastraConnectError(
+      'platform_error',
+      `Platform returned an unexpected Neon SQL response for connection ${connectionId}.`,
     );
   }
   return parsed.data;

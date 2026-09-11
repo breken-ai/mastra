@@ -1,6 +1,7 @@
 import type { ToolsInput } from '@mastra/core/agent';
 
-import { PROVIDERS } from './providers/index.js';
+import { extendProviderRegistration } from './provider-extensions/index.js';
+import { PROVIDERS as GENERATED_PROVIDERS } from './providers/index.js';
 import type { ProviderToolsOptions } from './toolset.js';
 
 /**
@@ -31,7 +32,7 @@ export interface ProviderRegistration {
  * kept and warned about once, so tools appear automatically once a connection
  * is attached.
  */
-export { PROVIDERS };
+export const PROVIDERS: readonly ProviderRegistration[] = GENERATED_PROVIDERS.map(extendProviderRegistration);
 
 export function findRegistration(integrationId: string): ProviderRegistration | undefined {
   return PROVIDERS.find(p => p.integrationId === integrationId);
