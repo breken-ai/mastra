@@ -33,6 +33,7 @@
     "list-providers": "tsx scripts/list-providers.ts",
     "remove-provider": "tsx scripts/remove-provider.ts",
     "sync-templates": "tsx scripts/sync-templates.ts",
+    "validate:neon-mcp": "tsx scripts/validate-neon-mcp.ts",
     "test": "vitest run"
   },
   "keywords": [

@@ -9,7 +9,7 @@
  * Bump `templateSha` deliberately when we want to pick up upstream updates.
  * The generator embeds this SHA in each provider's manifest for provenance.
  */
-// Temporary contribution fork while the Neon, Resend, and incident.io templates are reviewed upstream.
+// Temporary contribution fork while the Resend and incident.io templates are reviewed upstream.
 // Return this pin to NangoHQ after all three contributions land.
 export const TEMPLATE_REPO = 'rhysbalevicius/integration-templates';
 export const TEMPLATE_SHA = 'e15a84f3714d2a1026aa18a1b53371f892d5f859';

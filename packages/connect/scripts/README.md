@@ -73,7 +73,7 @@ Generated action implementations are adapted from `NangoHQ/integration-templates
 
 ## Pending provider contributions
 
-The current template pin uses `rhysbalevicius/integration-templates` at an immutable combined revision while the Neon, Resend, and incident.io contributions are reviewed in NangoHQ/integration-templates PRs [#666](https://github.com/NangoHQ/integration-templates/pull/666), [#667](https://github.com/NangoHQ/integration-templates/pull/667), and [#668](https://github.com/NangoHQ/integration-templates/pull/668). The fork contains the upstream checkout plus the three provider additions. Generation still uses the normal commands:
+The current template pin uses `rhysbalevicius/integration-templates` at an immutable combined revision while the Resend and incident.io contributions are reviewed in NangoHQ/integration-templates PRs [#667](https://github.com/NangoHQ/integration-templates/pull/667) and [#668](https://github.com/NangoHQ/integration-templates/pull/668). Neon uses its official MCP server instead of a generated template. Generation still uses the normal commands:
 
 ```sh
 pnpm --filter @mastra/connect sync-templates
