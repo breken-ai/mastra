@@ -46,11 +46,12 @@ The Connect suite verifies initialization, `notifications/initialized`, `tools/l
 
 Use a development or staging Platform environment with real Nango connectivity.
 
-1. Confirm the public Platform catalog contains `neon` with `capabilities.mcp: true`.
-2. Connect Neon through the Platform UI and wait until the connection is `active`.
-3. Attach that connection to the project used for validation.
-4. If the project has multiple active Neon connections, copy the intended Platform connection ID.
-5. Confirm the Nango connection has `mcp_server_url` set to `https://mcp.neon.tech/mcp`. Platform supplies this server-owned value during connect and reconnect sessions.
+1. Configure the Nango integration key `neon` from Nango’s generic MCP OAuth provider and confirm its auth type is `MCP_OAUTH2_GENERIC`. The stock API-key Neon provider does not expose MCP.
+2. Confirm the public Platform catalog contains `neon` with `capabilities.mcp: true`.
+3. Connect Neon through the Platform UI and wait until the connection is `active`.
+4. Attach that connection to the project used for validation.
+5. If the project has multiple active Neon connections, copy the intended Platform connection ID.
+6. Confirm the Nango connection has `mcp_server_url` set to `https://mcp.neon.tech/mcp`. Platform supplies this server-owned value during connect and reconnect sessions.
 
 Do not export a Neon API key, Neon OAuth token, database URL, or PostgreSQL password into the application shell.
 

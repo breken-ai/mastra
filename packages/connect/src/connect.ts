@@ -253,8 +253,8 @@ async function discoverMcpTools(input: {
         servers: {
           [registration.integrationId]: {
             ...transport,
-            // Neon is a server-owned, pinned upstream, so its MCP annotations
-            // are trusted for approval UX. Missing hints take the safe path.
+            // Registered MCP providers use server-owned, pinned upstreams, so their
+            // annotations are trusted for approval UX. Missing hints take the safe path.
             requireToolApproval: ({ annotations }) => annotations?.destructiveHint !== false,
           },
         },

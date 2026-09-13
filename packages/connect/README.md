@@ -30,9 +30,9 @@ The resolver discovers active project connections. Where multiple connections ma
 
 ## Neon MCP
 
-`connect()` keeps the same flat dynamic-tool contract. It discovers the official Neon MCP catalog through `/v2/connections/:connectionId/mcp` and namespaces each result as `neon_<tool-name>`. It reuses the MCP session across refreshes and closes sessions when the connection changes, is detached, or `disconnect()` is called.
+`connect()` keeps the same flat dynamic-tool contract. Its MCP adapter is provider-neutral: each shipped MCP registration selects a Platform integration ID, and every provider uses `/v2/connections/:connectionId/mcp` for discovery and invocation. Neon is the first registration, so its discovered tools are namespaced as `neon_<tool-name>`. The adapter reuses each provider’s MCP session across refreshes and closes sessions when the connection changes, is detached, or `disconnect()` is called.
 
-The application sends only its Mastra Platform token. The transport is locked to the selected Platform connection URL. Platform removes caller authentication before Nango injects the Neon credential, proxies every protocol request to Neon's official server, and records bounded `integrationId`, tool name, and outcome dimensions. Tool arguments and results are not metric dimensions or log fields.
+The application sends only its Mastra Platform token. The transport is locked to the selected Platform connection URL. Platform removes caller authentication before Nango injects the provider credential and proxies each protocol request to the MCP server configured for that Nango integration. For Neon, Platform pins the official server and records bounded `integrationId`, tool name, and outcome dimensions. Tool arguments and results are not metric dimensions or log fields.
 
 Neon's official catalog can change independently of this package. Use `allowTools` to give an agent the smallest useful subset. Tools with `destructiveHint: true`, or without an explicit non-destructive hint, require tool approval.
 
