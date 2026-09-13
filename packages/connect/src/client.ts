@@ -140,6 +140,39 @@ async function throwPlatformError(response: Response, context: string): Promise<
   );
 }
 
+/** Builds a locked MCP transport that can only call one Platform connection endpoint. */
+export function platformMcpTransport(client: ResolvedClient, connectionId: string) {
+  const url = new URL(`${client.baseUrl}/v2/connections/${encodeURIComponent(connectionId)}/mcp`);
+  return {
+    url,
+    allowedHosts: [url.host],
+    fetch: async (input: string | URL, init?: RequestInit): Promise<Response> => {
+      const requested = new URL(String(input));
+      if (requested.href !== url.href) {
+        throw new MastraConnectError(
+          'invalid_options',
+          `MCP transport refused an unexpected Platform URL for connection ${connectionId}.`,
+        );
+      }
+      const headers = new Headers(client.headers);
+      new Headers(init?.headers).forEach((value, name) => headers.set(name, value));
+      // The platform token always wins over transport-provided headers. Platform
+      // strips it before Nango injects the provider credential upstream.
+      headers.set('authorization', `Bearer ${client.accessToken}`);
+      try {
+        return await client.fetch(url, { ...init, headers, redirect: 'manual' });
+      } catch (error) {
+        if (error instanceof Error && error.message.includes(client.accessToken)) {
+          const redacted = new Error(redact(error.message, client.accessToken));
+          redacted.name = error.name;
+          throw redacted;
+        }
+        throw error;
+      }
+    },
+  };
+}
+
 // —— response schemas (mirroring the platform's http-schemas) ——
 
 export const connectionSchema = z.object({
@@ -174,74 +207,6 @@ export const connectionContextSchema = z.object({
 });
 
 export type ConnectionContext = z.infer<typeof connectionContextSchema>;
-
-const neonSqlParameterSchema = z.union([z.string(), z.number().finite(), z.boolean(), z.null()]);
-
-export const neonSqlRequestSchema = z.object({
-  project_id: z.string(),
-  branch_id: z.string().optional(),
-  endpoint_id: z.string().optional(),
-  database_name: z.string().optional(),
-  role_name: z.string().optional(),
-  mode: z.enum(['read', 'write']),
-  statements: z.array(
-    z.object({
-      sql: z.string(),
-      parameters: z.array(neonSqlParameterSchema).optional(),
-    }),
-  ),
-  timeout_ms: z.number().int(),
-  max_rows: z.number().int(),
-});
-
-export type NeonSqlRequest = z.infer<typeof neonSqlRequestSchema>;
-
-export const neonSqlStatementResultSchema = z.object({
-  rows: z.array(z.record(z.string(), z.unknown())),
-  row_count: z.number().int().nonnegative(),
-  affected_rows: z.number().int().nonnegative(),
-  command: z.string(),
-  truncated: z.boolean(),
-});
-
-const neonSqlResponseSchema = z.object({
-  results: z.array(neonSqlStatementResultSchema),
-});
-
-export type NeonSqlResponse = z.infer<typeof neonSqlResponseSchema>;
-
-export const neonMigrationSchema = z.object({
-  migration_id: z.string().uuid(),
-  project_id: z.string(),
-  parent_branch_id: z.string(),
-  temporary_branch_id: z.string(),
-  temporary_branch_name: z.string(),
-  database_name: z.string().optional(),
-  role_name: z.string().optional(),
-  statements: neonSqlRequestSchema.shape.statements,
-  timeout_ms: z.number().int(),
-  max_rows: z.number().int(),
-  prepared_at: z.string().datetime(),
-  expires_at: z.string().datetime(),
-});
-
-export type NeonMigration = z.infer<typeof neonMigrationSchema>;
-
-export const neonPrepareMigrationResponseSchema = z.object({
-  migration: neonMigrationSchema,
-  validation_results: z.array(neonSqlStatementResultSchema),
-});
-
-export type NeonPrepareMigrationResponse = z.infer<typeof neonPrepareMigrationResponseSchema>;
-
-export const neonCompleteMigrationResponseSchema = z.object({
-  applied: z.boolean(),
-  already_applied: z.boolean(),
-  temporary_branch_deleted: z.boolean(),
-  results: z.array(neonSqlStatementResultSchema),
-});
-
-export type NeonCompleteMigrationResponse = z.infer<typeof neonCompleteMigrationResponseSchema>;
 
 // —— endpoint functions ——
 
@@ -289,99 +254,6 @@ export async function getCredential(client: ResolvedClient, connectionId: string
     throw new MastraConnectError(
       'unsupported_credential_type',
       `Platform returned an unsupported credential type for connection ${connectionId}.`,
-    );
-  }
-  return parsed.data;
-}
-
-/** Executes SQL in Platform so the Neon credential and connection URI never enter the caller's process. */
-export async function executeNeonSql(
-  client: ResolvedClient,
-  connectionId: string,
-  request: NeonSqlRequest,
-): Promise<NeonSqlResponse> {
-  const response = await platformFetch(client, `/v2/connections/${encodeURIComponent(connectionId)}/neon/sql`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(request),
-  });
-  if (!response.ok) {
-    await throwPlatformError(response, `executing Neon SQL for connection ${connectionId}`);
-  }
-  const parsed = neonSqlResponseSchema.safeParse(
-    await parsePlatformJson(response, `executing Neon SQL for connection ${connectionId}`),
-  );
-  if (!parsed.success) {
-    throw new MastraConnectError(
-      'platform_error',
-      `Platform returned an unexpected Neon SQL response for connection ${connectionId}.`,
-    );
-  }
-  return parsed.data;
-}
-
-export async function prepareNeonMigration(
-  client: ResolvedClient,
-  connectionId: string,
-  request: {
-    project_id: string;
-    parent_branch_id: string;
-    database_name?: string;
-    role_name?: string;
-    statements: NeonSqlRequest['statements'];
-    timeout_ms: number;
-    max_rows: number;
-    ttl_seconds: number;
-  },
-): Promise<NeonPrepareMigrationResponse> {
-  const response = await platformFetch(
-    client,
-    `/v2/connections/${encodeURIComponent(connectionId)}/neon/migrations/prepare`,
-    {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(request),
-    },
-  );
-  if (!response.ok) {
-    await throwPlatformError(response, `preparing a Neon migration for connection ${connectionId}`);
-  }
-  const parsed = neonPrepareMigrationResponseSchema.safeParse(
-    await parsePlatformJson(response, `preparing a Neon migration for connection ${connectionId}`),
-  );
-  if (!parsed.success) {
-    throw new MastraConnectError(
-      'platform_error',
-      `Platform returned an unexpected Neon migration response for connection ${connectionId}.`,
-    );
-  }
-  return parsed.data;
-}
-
-export async function completeNeonMigration(
-  client: ResolvedClient,
-  connectionId: string,
-  request: { migration: NeonMigration; apply_changes: boolean },
-): Promise<NeonCompleteMigrationResponse> {
-  const response = await platformFetch(
-    client,
-    `/v2/connections/${encodeURIComponent(connectionId)}/neon/migrations/complete`,
-    {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify(request),
-    },
-  );
-  if (!response.ok) {
-    await throwPlatformError(response, `completing a Neon migration for connection ${connectionId}`);
-  }
-  const parsed = neonCompleteMigrationResponseSchema.safeParse(
-    await parsePlatformJson(response, `completing a Neon migration for connection ${connectionId}`),
-  );
-  if (!parsed.success) {
-    throw new MastraConnectError(
-      'platform_error',
-      `Platform returned an unexpected Neon migration completion for connection ${connectionId}.`,
     );
   }
   return parsed.data;

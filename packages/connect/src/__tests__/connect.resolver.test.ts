@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { connect } from '../connect.js';
 import type { ConnectOptions } from '../connect.js';
 import { MastraConnectError } from '../errors.js';
-import { PROVIDERS, type ProviderRegistration } from '../registry.js';
+import { PROVIDERS, type ProviderRegistration, type ProxyProviderRegistration } from '../registry.js';
 
 // Test-only seam: the shipped barrel exports a readonly view; tests mutate the
 // underlying array to install fixture providers.
@@ -14,7 +14,7 @@ const TOKEN = 'fake-test-token';
 function installProvider(
   integrationId: string,
   envVar: string,
-): ProviderRegistration & { createToolsSpy: ReturnType<typeof vi.fn> } {
+): ProxyProviderRegistration & { createToolsSpy: ReturnType<typeof vi.fn> } {
   const createTools = vi
     .fn()
     .mockReturnValue({ [`${integrationId}_fake_tool`]: { id: `${integrationId}_fake_tool` } } as never);
