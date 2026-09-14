@@ -352,6 +352,7 @@ export enum GeminiLiveErrorCode {
   API_KEY_MISSING = 'api_key_missing',
   PROJECT_ID_MISSING = 'project_id_missing',
   WEBSOCKET_ERROR = 'websocket_error',
+  WEBSOCKET_CLOSED = 'websocket_closed',
   AUDIO_PROCESSING_ERROR = 'audio_processing_error',
   AUDIO_STREAM_ERROR = 'audio_stream_error',
   SPEAKER_STREAM_ERROR = 'speaker_stream_error',

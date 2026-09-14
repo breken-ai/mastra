@@ -179,6 +179,58 @@ describe('GeminiLiveVoice', () => {
       await expect(errorPromise).resolves.toBeDefined();
     });
 
+    it('connect() rejects with the close code and reason when the server closes the socket during setup', async () => {
+      vi.useFakeTimers();
+      try {
+        vi.spyOn((voice as any).connectionManager, 'waitForOpen').mockResolvedValue(undefined as any);
+
+        const errors: Array<{ message: string; code?: string; details?: unknown }> = [];
+        voice.on('error', (error: { message: string; code?: string; details?: unknown }) => {
+          errors.push(error);
+        });
+
+        let outcome: { status: 'resolved' } | { status: 'rejected'; reason: Error } | undefined;
+        const connectPromise = voice.connect().then(
+          () => {
+            outcome = { status: 'resolved' };
+          },
+          (reason: Error) => {
+            outcome = { status: 'rejected', reason };
+          },
+        );
+
+        // Let connect() register its WebSocket listeners and send the setup frame.
+        await vi.advanceTimersByTimeAsync(0);
+        const closeHandler = mockWsInstance.on.mock.calls.find(([event]: [string]) => event === 'close')?.[1];
+        expect(closeHandler).toBeTypeOf('function');
+
+        // The server rejects the setup frame with a clean close (1007 invalid argument),
+        // which arrives as a `close` event rather than a socket `error`.
+        closeHandler(1007, Buffer.from('Invalid argument: unknown model'));
+
+        // One second is plenty: the pending connect() must settle well before its 30s setup timeout.
+        await vi.advanceTimersByTimeAsync(1_000);
+
+        expect(outcome?.status).toBe('rejected');
+        const reason = (outcome as { status: 'rejected'; reason: Error }).reason;
+        expect(reason.message).toContain('1007');
+        expect(reason.message).toContain('Invalid argument: unknown model');
+        expect(errors).toContainEqual(
+          expect.objectContaining({
+            code: 'websocket_closed',
+            details: expect.objectContaining({ code: 1007, reason: 'Invalid argument: unknown model' }),
+          }),
+        );
+        expect(voice.getConnectionState()).toBe('disconnected');
+
+        await connectPromise;
+      } finally {
+        // Drain the 30s setup timer so an unfixed, still-pending connect() cannot leak past this test.
+        await vi.advanceTimersByTimeAsync(30_000);
+        vi.useRealTimers();
+      }
+    });
+
     it('should disconnect properly', async () => {
       await voice.disconnect();
       expect(voice.getConnectionState()).toBe('disconnected');

@@ -1243,6 +1243,18 @@ export class GeminiLiveVoice extends MastraVoice<
       this.log('WebSocket connection closed', { code, reason: reason.toString() });
       this.state = 'disconnected';
       this.emit('session', { state: 'disconnected', code, reason: reason.toString() });
+
+      // A server-initiated close (e.g. 1007 for a rejected setup frame) arrives here, not on
+      // 'error'. Surface it as an error so a connect() still waiting for setupComplete rejects
+      // with the close code and reason instead of waiting out its 30s timeout.
+      if (code !== 1000) {
+        const reasonText = reason.toString();
+        this.emit('error', {
+          message: `WebSocket closed (code ${code})${reasonText ? `: ${reasonText}` : ''}`,
+          code: GeminiLiveErrorCode.WEBSOCKET_CLOSED,
+          details: { code, reason: reasonText },
+        });
+      }
     });
 
     this.ws.on('error', (error: Error) => {
