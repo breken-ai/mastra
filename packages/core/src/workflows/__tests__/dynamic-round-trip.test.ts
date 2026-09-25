@@ -181,6 +181,49 @@ describe('storage round-trip', () => {
     expect(cfg.message.template).toContain('${stepResults.double-tool.doubled}');
   });
 
+  // https://github.com/mastra-ai/mastra/issues/24982
+  it('keeps the `initData: true` mapping source through serialize → rehydrate → run', async () => {
+    const buildWorkflow = () =>
+      createWorkflow({
+        id: 'init-data-map-wf',
+        inputSchema: z.object({ value: z.number(), email: z.string() }),
+        outputSchema: z.object({ email: z.string() }),
+      })
+        .tool(doubleTool)
+        .map({ email: { initData: true, path: 'email' } } as any)
+        .commit();
+
+    const stored = JSON.parse(JSON.stringify(toStorableGraph(buildWorkflow().stepGraph)));
+    const mapping = stored[1] as Extract<SerializedStepFlowEntry, { type: 'mapping' }>;
+    expect(JSON.parse(mapping.mapConfig)).toEqual({ email: { initData: true, path: 'email' } });
+
+    const mastra = new Mastra({
+      logger: false,
+      tools: { 'double-tool': doubleTool } as any,
+      storage: new InMemoryStore({ id: 'init-data-map' }),
+    });
+    const { workflow: rehydrated } = await rehydrateWorkflow(
+      {
+        id: 'init-data-map-wf',
+        inputSchema: {
+          type: 'object',
+          properties: { value: { type: 'number' }, email: { type: 'string' } },
+          required: ['value', 'email'],
+        },
+        outputSchema: { type: 'object', properties: { email: { type: 'string' } }, required: ['email'] },
+        graph: stored,
+      },
+      mastra,
+    );
+    mastra.addWorkflow(rehydrated, 'init-data-map-wf');
+
+    const run = await mastra.getWorkflow('init-data-map-wf').createRun();
+    const result = await run.start({ inputData: { value: 2, email: 'a@example.com' } });
+
+    expect(result.status).toBe('success');
+    expect((result as any).result).toEqual({ email: 'a@example.com' });
+  });
+
   it('rehydrated workflow produces the same output as the original', async () => {
     // 1. Run the original on Mastra A
     const originalWorkflow = buildOriginalWorkflow();
