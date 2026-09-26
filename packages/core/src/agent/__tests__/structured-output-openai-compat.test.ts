@@ -169,4 +169,24 @@ describe('OpenAI compat layer in agent.ts with structured output', () => {
       },
     });
   });
+
+  it('does not send propertyNames for a z.record() field in the strict schema', async () => {
+    let responseFormat: any;
+    const model = createMockOpenAIModel({
+      modelId: 'gpt-4o',
+      response: { labels: {} },
+      onGenerate: options => {
+        responseFormat = options.responseFormat;
+      },
+    });
+    const agent = new Agent({ id: 'test', name: 'test', instructions: 'test', model });
+
+    await agent.generate('test', {
+      structuredOutput: { schema: z.object({ labels: z.record(z.string(), z.string()) }) },
+    });
+
+    // OpenAI strict mode rejects the request with "'propertyNames' is not permitted".
+    expect(responseFormat?.schema?.properties?.labels).toBeDefined();
+    expect(responseFormat.schema.properties.labels).not.toHaveProperty('propertyNames');
+  });
 });

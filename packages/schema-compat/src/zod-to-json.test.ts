@@ -793,6 +793,7 @@ describe('prepareJsonSchemaForOpenAIStrictMode', () => {
     'minProperties',
     'maxProperties',
     'patternProperties',
+    'propertyNames',
     'unevaluatedItems',
     'unevaluatedProperties',
     'allOf',
@@ -1141,6 +1142,20 @@ describe('prepareJsonSchemaForOpenAIStrictMode', () => {
     expect(collectLeakedKeywords(out)).toEqual([]);
     // Supported structure survives.
     expect((out.properties as any).val).toBeDefined();
+  });
+
+  it('drops propertyNames that z.record() emits for its key type', () => {
+    const schema = zodToJsonSchema(z.object({ labels: createRecord(z.string()) }));
+    const withKeyType = {
+      type: 'object',
+      properties: {
+        labels: { type: 'object', propertyNames: { type: 'string' }, additionalProperties: { type: 'string' } },
+      },
+      required: ['labels'],
+    } as unknown as JSONSchema7;
+
+    expect(collectLeakedKeywords(prepareJsonSchemaForOpenAIStrictMode(schema))).toEqual([]);
+    expect(collectLeakedKeywords(prepareJsonSchemaForOpenAIStrictMode(withKeyType))).toEqual([]);
   });
 
   it('drops object-level and contains/unevaluated keywords with no description mapping', () => {
