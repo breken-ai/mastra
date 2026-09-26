@@ -120,21 +120,25 @@ export class SentenceTransformer extends TextTransformer {
     const chunks: string[] = [];
     let currentChunk: string[] = [];
     let currentSize = 0;
+    // Number of sentences at the start of currentChunk that were carried over
+    // as overlap. They were already emitted, so a chunk made only of them is a
+    // duplicate and must not be emitted again.
+    let carriedCount = 0;
 
     const separator = ' ';
 
     for (const sentence of sentences) {
       const sentenceLength = this.lengthFunction(sentence);
-      const separatorLength = currentChunk.length > 0 ? this.lengthFunction(separator) : 0;
-      const totalLength = currentSize + sentenceLength + separatorLength;
+      const totalLength = currentSize + sentenceLength + (currentChunk.length > 0 ? this.lengthFunction(separator) : 0);
 
       // Handle oversized sentences with fallback strategies
       if (sentenceLength > this.maxSize) {
-        if (currentChunk.length > 0) {
+        if (currentChunk.length > carriedCount) {
           chunks.push(currentChunk.join(separator));
-          currentChunk = [];
-          currentSize = 0;
         }
+        currentChunk = [];
+        currentSize = 0;
+        carriedCount = 0;
 
         const fallbackChunks = this.handleOversizedSentence(sentence);
         chunks.push(...fallbackChunks);
@@ -143,13 +147,21 @@ export class SentenceTransformer extends TextTransformer {
 
       // If adding this sentence would exceed maxSize, finalize current chunk
       if (currentChunk.length > 0 && totalLength > this.maxSize) {
-        chunks.push(currentChunk.join(separator));
+        if (currentChunk.length > carriedCount) {
+          chunks.push(currentChunk.join(separator));
+          currentChunk = this.calculateSentenceOverlap(currentChunk);
+        }
 
-        const overlapSentences = this.calculateSentenceOverlap(currentChunk);
-        currentChunk = overlapSentences;
+        // Drop overlap from the front until the incoming sentence fits, so the
+        // next chunk never exceeds maxSize.
+        while (currentChunk.length > 0 && this.calculateChunkSize([...currentChunk, sentence]) > this.maxSize) {
+          currentChunk.shift();
+        }
+        carriedCount = currentChunk.length;
         currentSize = this.calculateChunkSize(currentChunk);
       }
 
+      const separatorLength = currentChunk.length > 0 ? this.lengthFunction(separator) : 0;
       currentChunk.push(sentence);
       currentSize += sentenceLength + separatorLength;
 
@@ -157,13 +169,13 @@ export class SentenceTransformer extends TextTransformer {
       if (currentSize >= this.targetSize) {
         chunks.push(currentChunk.join(separator));
 
-        const overlapSentences = this.calculateSentenceOverlap(currentChunk);
-        currentChunk = overlapSentences;
+        currentChunk = this.calculateSentenceOverlap(currentChunk);
+        carriedCount = currentChunk.length;
         currentSize = this.calculateChunkSize(currentChunk);
       }
     }
 
-    if (currentChunk.length > 0) {
+    if (currentChunk.length > carriedCount) {
       chunks.push(currentChunk.join(separator));
     }
 
