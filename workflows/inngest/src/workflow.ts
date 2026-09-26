@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import { emitErrorEvent } from '@mastra/core/agent/durable';
 import { RequestContext } from '@mastra/core/di';
+import { getErrorFromUnknown } from '@mastra/core/error';
 import { PubSub } from '@mastra/core/events';
 import type { Event, EventCallback, SubscribeOptions } from '@mastra/core/events';
 import type { Mastra } from '@mastra/core/mastra';
@@ -632,7 +633,8 @@ export class InngestWorkflow<
 
                 if (result.status === 'failed') {
                   workflowSpan.error({
-                    error: result.error instanceof Error ? result.error : new Error(String(result.error)),
+                    // A failed step result carries a serialized error, not an Error instance.
+                    error: getErrorFromUnknown(result.error, { fallbackMessage: 'Workflow execution failed' }),
                     attributes: { status: 'failed' },
                   });
                 } else {
